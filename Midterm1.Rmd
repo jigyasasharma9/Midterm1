@@ -1,0 +1,264 @@
+---
+title: "Data Breaches: Making a Case for Data Security"
+author: "Jigyasa"
+date: "4/7/2020"
+output: html_document
+---
+
+
+
+
+```{r, echo=FALSE, include=FALSE}
+#Downloading libraries I may (or may not) need
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(plotly)
+library(gganimate)
+library(ggthemes)
+library(reshape2)
+library(devtools)
+library(RCurl)
+library(httr)
+library(skimr)
+library(forcats)
+library(plotly)
+library(gifski)
+library(readxl)
+```
+
+```{r, echo=FALSE, include=FALSE}
+Midtermproject_data <- read_excel("~/Desktop/MPP/Spring 2020/D4PP/Midterm project/Midtermproject_data.xlsx")
+```
+
+
+```{r, echo=FALSE, include=FALSE}
+Midtermproject_data
+```
+
+
+```{r, echo=FALSE, include=FALSE}
+Midtermproject_data$datasen <- as.factor(Midtermproject_data$datasen)
+Midtermproject_data$stolenrecords <-as.numeric(Midtermproject_data$stolenrecords)
+#changing into factor and numeric respectively.
+
+```
+
+
+
+```{r, echo=FALSE, include=FALSE}
+databreaches<-Midtermproject_data %>% 
+  mutate(datatype = case_when(datasen == 1 ~ "Opensource", 
+                                datasen == 20 ~ "Personal",
+                                datasen == 300 ~ "Financial",
+                                datasen == 4000 ~ "Confidential",
+                                datasen == 3 ~ "Financial",
+                                datasen == 50000 ~ "Secret")) %>% #Categories data sensitivity into different types with Opensource                                                                   being least sensitive to Secret being most sensitive data
+  mutate(sector = case_when(orgtype == "tech" ~ "Web", 
+                            orgtype == "web, gaming" ~ "Web",
+                            orgtype == "gaming" ~ "Web",
+                            orgtype == "media" ~ "Web",
+                            orgtype == "tech, web" ~ "Web",
+                            orgtype == "web, tech" ~ "Web",
+                            orgtype == "app" ~ "Web",
+                            orgtype == "web" ~ "Web",
+                            orgtype == "tech, retail" ~ "Retail",
+                            orgtype == "retail" ~ "Retail",
+                            orgtype == "web, military" ~ "Government",
+                            orgtype == "government" ~ "Government",
+                            orgtype == "government, healthcare" ~      "Government", 
+                            orgtype == "government, military" ~ "Government",
+                            orgtype == "military" ~ "Government",
+                            orgtype == "military, healthcare" ~ "Government", 
+                            orgtype == "military" ~ "Government",
+                            orgtype == "financial" ~ "Financial",
+                            orgtype == "telecoms" ~ "Telecoms",
+                            orgtype == "energy" ~ "Energy",
+                            orgtype == "academic" ~ "Academic",
+                            orgtype == "healthcare" ~ "Healthcare",
+                            orgtype == "legal" ~ "Legal",
+                            orgtype == "transport" ~ "Transport",
+                            )) %>% #categories organisations into 10 sectors
+  mutate(leaktype = case_when(leakmethod == "inside job" ~ "Malicious Intent", 
+                            leakmethod == "hacked" ~ "Malicious Intent",
+                            leakmethod == "lost / stolen device or media" ~ "Human Error",
+                            leakmethod == "poor security" ~ "Human Error",
+                            leakmethod == "accidentally published" ~ "Human Error")) #categories methods of leak into two leak type
+
+```
+
+```{r, echo = FALSE, include = FALSE, comment= ""}
+head(databreaches)
+```
+
+
+##  Outline 
+
+- Variables of Interest
+
+- Trends in Data Breaches 2004 - 2018
+
+- Percent of Data Breaches by Sectors
+
+- Sectors and Data Types 
+
+- Data and Leak Types
+
+- Breaches in Sectors by Leak Types
+
+
+## Variables of Interest 
+
+- Records Stolen
+
+- Leak Methods --> Categorised into 2 Leak Types
+
+- Organisations --> Categorised into 10 Sectors
+
+- Data Sensitivity --> Categorised into 5 Datatypes 
+
+
+```{r, echo = FALSE, include= FALSE}
+ls(databreaches)
+```
+
+```{r, echo=FALSE, include=FALSE}
+
+df1 <- databreaches %>% 
+  group_by(year, sector) %>% 
+  summarise(totalrecordsstolen = sum(stolenrecords)) %>% 
+  select(year, sector,totalrecordsstolen)
+
+df1
+#Setting up data frame for first figure
+```
+
+
+## Trends in Data Breaches (2004 - 2018)
+
+
+
+![Trends in Data Breaches](figz.gif)
+
+```{r, echo = FALSE, include = FALSE, eval= FALSE}
+fig1 <- df1 %>% 
+  ggplot(aes(x = year, y = totalrecordsstolen, color = sector))+geom_path() + 
+  geom_point() + scale_fill_manual(values = c("red", "green", "blue", "pink", "yellow", "orange", "tan", "orchid", "grey", "brown"))+
+  transition_reveal(id = year, along = year) + 
+  ease_aes("linear")+theme(legend.title = element_text(color = "black", size = 10, face = "bold" ),legend.position = "none")+theme_classic()+labs(x = "Year", y = "Records Stolen")+scale_x_discrete(name = "Year", limits = c(2004, 2006, 2008, 2010, 2012, 2014, 2016, 2018))
+
+animate(fig1, 200, 20, renderer = gifski_renderer("figz.gif"))
+```
+
+
+
+```{r, echo=FALSE, include=FALSE}
+bysector <- databreaches %>% 
+  group_by(sector) %>% 
+  summarise(totalstolenrecords = sum(stolenrecords)) %>% 
+  select(sector,totalstolenrecords) #calculating total breaches over the years by sector
+
+sharepersector<- bysector %>%
+  mutate(total=sum(totalstolenrecords)) %>% 
+  mutate(percent_share = round(totalstolenrecords/total*100, 2)) %>% 
+  select(sector, totalstolenrecords, percent_share) #calculating percent share
+
+```
+
+```{r, echo=FALSE, include=FALSE}
+sharepersector
+```
+
+
+
+## Percent of Data Breaches by Sectors
+
+#### <small>**Web, Government and Financial** accounted for around **97** percent of the data breaches \n from 2004 to 2018 </small>
+
+```{r, echo = FALSE, fig.margin=TRUE}
+fig2<- ggplot(sharepersector, aes(x= reorder(sector, percent_share), y=percent_share)) +
+    geom_segment( aes(xend=sector, yend=0)) +
+    geom_point(size=4.5, color="orange") +
+    coord_flip() +
+    theme_bw() +
+    xlab("")+ labs(y = "Percent Share")
+
+pfg2<- ggplotly(fig2)
+
+pfg2
+```
+
+
+
+
+
+
+```{r,echo=FALSE, include=FALSE}
+type_leak<- databreaches %>% 
+  group_by(year, sector, datatype, leaktype) %>% 
+  summarise(totalrecordsstolen = sum(stolenrecords)) %>% 
+  mutate(records_10000 = round(totalrecordsstolen/10000)) %>% 
+  select(year, sector, totalrecordsstolen, records_10000, datatype, leaktype )
+
+type_leak
+```
+
+
+
+
+
+## Sectors and Data Types 
+
+
+```{r, echo=FALSE, fig.margin=TRUE}
+fig3<- type_leak %>% 
+  group_by(datatype, sector) %>% 
+  summarise(totalrecordsstolen = sum(totalrecordsstolen)) %>% 
+  ggplot(aes(x = sector, y = log(totalrecordsstolen)))+geom_bar( stat = "identity", aes(fill = datatype), width = 0.5)+theme_bw()+labs(x = "Sectors", y = "Data Stolen (in log)")+scale_fill_brewer(palette = "GnBu")+scale_x_discrete(name = "Sectors", limits = c("Legal","Energy","Transport", "Academic", "Telecoms", "Retail","Healthcare", "Financial", "Government", "Web"))+theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.text = element_text(colour="black", size=10, face="bold"), legend.background = element_rect(size=0.5, linetype="solid"), legend.title = element_blank())
+
+pfig3 <- ggplotly(fig3)
+
+pfig3
+
+#recoder not working for some reason
+```
+
+
+## Data and Leak Types 
+
+### <small>Roughly half of all data types were breached due to **Human Error**!</small>
+
+```{r, echo = FALSE, fig.margin=TRUE}
+fig4<- type_leak %>% 
+  group_by(datatype, leaktype) %>% 
+  summarise(totalrecordsstolen = sum(totalrecordsstolen)) %>% 
+  ggplot(aes(x = datatype, y = log(totalrecordsstolen)))+geom_bar(color = "black", position = "fill", stat = "identity", aes(fill = leaktype), width = 0.6, alpha = 0.7)+theme_bw()+labs(x = "Data Type", y = "Percent of Data Stolen")+scale_fill_brewer(palette = "Set1")+scale_y_continuous(labels = scales::percent_format())+theme(legend.title = element_blank())
+
+pfig4 <- ggplotly(fig4)
+
+pfig4
+```
+
+
+
+
+## Breaches in Sectors by Leak Types
+
+### <small>**93%** of data breaches within the government sector were due to **Human Error** $\underline{that\space could\space have\space been\space prevented!}$ </small>
+
+
+```{r, echo = FALSE, fig.margin=TRUE, fig.align="center"}
+fig5<- type_leak %>% 
+  group_by(sector,leaktype) %>% 
+  summarise(totalrecordsstolen = sum(totalrecordsstolen)) %>% 
+  ggplot(aes(x =sector, y = totalrecordsstolen))+geom_bar(color = "black", position = "fill", stat = "identity", aes(fill = leaktype), width = 0.5, alpha = 0.7)+theme_bw()+labs(x = "Sector", y = "Percent of Data Stolen")+scale_fill_brewer(palette = "Set1")+scale_y_continuous(labels = scales::percent_format())+theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.title = element_blank())+scale_x_discrete(name = "Sectors", limits = c("Government","Academic","Transport", "Web", "Telecoms", "Healthcare", "Retail","Financial", "Legal", "Energy"))
+
+pfig5 <- ggplotly(fig5)
+
+pfig5
+```
+
+
+
+
+
